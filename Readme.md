@@ -57,7 +57,7 @@ The project objectives are:
 ```text
 ## Repository Structure
 
-```text
+
 Biomedproject/
 ├── README.md
 ├── requirements.txt
