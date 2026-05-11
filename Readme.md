@@ -1,9 +1,8 @@
-````markdown
 # Batch Effects in Multi-Center PET/CT Radiomics Using HECKTOR 2025 and nnU-Net
 
-This repository contains a reproducible pipeline for studying batch effects in multi-center PET/CT data for head-and-neck tumor segmentation.
+This repository contains a reproducible pipeline for studying batch effects in multi-center PET/CT imaging data for head-and-neck tumor segmentation.
 
-The project uses the HECKTOR 2025 training dataset and nnU-Net. The workflow includes dataset extraction, CT quality control, center-wise exploratory analysis, Leave-One-Center-Out dataset preparation, nnU-Net training on Quartz, local inference, Dice evaluation, residual batch-effect analysis, and qualitative visualization of ground truth versus model prediction.
+The goal of this project is to investigate residual batch effects in multi-center CT-based head-and-neck tumor segmentation using a reproducible nnU-Net workflow. The pipeline includes HECKTOR dataset extraction, CT/PET/mask quality control, center-wise exploratory analysis, Leave-One-Center-Out dataset preparation, Quartz-based nnU-Net training, local inference, Dice score evaluation, residual batch-effect statistical analysis, and qualitative PET/CT visualization of ground truth versus model prediction.
 
 ## Project
 
@@ -22,7 +21,38 @@ Course:
 
 ---
 
-## 1. Repository Contents
+## 1. Research Motivation
+
+Multi-center medical imaging datasets contain non-biological variability caused by scanner vendor, acquisition protocol, reconstruction settings, voxel spacing, image quality, and institutional workflow. These sources of variability are known as batch effects.
+
+In radiomics and deep learning-based medical image analysis, batch effects can reduce model generalization and cause segmentation performance to vary across hospitals. This project evaluates whether residual center-specific variability remains after preprocessing and nnU-Net segmentation.
+
+---
+
+## 2. Objectives
+
+The project objectives are:
+
+1. Organize and quality-control the HECKTOR 2025 PET/CT dataset.
+2. Quantify center-wise differences in case distribution, CT intensity, scanner information, and slice thickness.
+3. Prepare nnU-Net-compatible datasets using Leave-One-Center-Out splitting.
+4. Train nnU-Net tumor segmentation models on Indiana University Quartz HPC.
+5. Run local inference using trained nnU-Net model checkpoints.
+6. Evaluate segmentation performance using Dice score and related metrics.
+7. Test whether segmentation performance differs across hospitals.
+8. Generate qualitative PET/CT overlays comparing ground truth and nnU-Net prediction.
+
+---
+
+## 3. Hypothesis
+
+**Null hypothesis:** After preprocessing and normalization, segmentation performance does not differ significantly across hospitals.
+
+**Alternative hypothesis:** Segmentation performance differs across hospitals because residual batch effects remain after preprocessing.
+
+---
+
+## 4. Repository Structure
 
 ```text
 Biomedproject/
@@ -31,7 +61,7 @@ Biomedproject/
 ├── .gitignore
 ├── configs/
 │   └── example_config.json
-├── scripts/
+├── Project/
 │   ├── 00_extract_hecktor_zip.py
 │   ├── 01_qc_ct_dataset.py
 │   ├── 02_build_nnunet_loco_datasets.py
@@ -47,6 +77,7 @@ Biomedproject/
 │   ├── raw/
 │   ├── extracted/
 │   └── processed/
+├── model_zoo/
 ├── local_nnunet/
 │   ├── nnUNet_raw/
 │   ├── nnUNet_preprocessed/
@@ -54,19 +85,19 @@ Biomedproject/
 │   ├── predictions/
 │   └── results/
 └── figures/
-````
+```
 
-The folders `data/`, `local_nnunet/`, `figures/`, predictions, model checkpoints, and NIfTI files are not tracked by Git.
+The folders `data/`, `model_zoo/`, `local_nnunet/`, `figures/`, model checkpoints, predictions, and NIfTI files are not tracked by Git.
 
 ---
 
-## 2. Dataset
+## 5. Dataset
 
 This project uses the **HECKTOR 2025 Training Data Defaced ALL** dataset.
 
 The dataset is not included in this repository because it contains large medical imaging files.
 
-Place the downloaded zip file here:
+Place the downloaded dataset zip file here:
 
 ```text
 data/raw/HECKTOR_2025_Training_Data_Defaced_ALL.zip
@@ -89,26 +120,50 @@ data/extracted/HECKTOR 2025 Training Data Defaced ALL/
 
 File meanings:
 
-| File                       | Description                                   |
-| -------------------------- | --------------------------------------------- |
-| `PatientID__CT.nii.gz`     | CT image                                      |
-| `PatientID__PT.nii.gz`     | PET image                                     |
-| `PatientID.nii.gz`         | Ground-truth tumor mask                       |
+| File | Description |
+|---|---|
+| `PatientID__CT.nii.gz` | CT image |
+| `PatientID__PT.nii.gz` | PET image |
+| `PatientID.nii.gz` | Ground-truth tumor segmentation mask |
 | `PatientID__RTDOSE.nii.gz` | Radiation dose file, not used in this project |
 
 Segmentation labels:
 
-| Label | Meaning                          |
-| ----: | -------------------------------- |
-|     0 | Background                       |
-|     1 | GTVp, primary gross tumor volume |
-|     2 | GTVn, nodal gross tumor volume   |
+| Label | Meaning |
+|---:|---|
+| 0 | Background |
+| 1 | GTVp, primary gross tumor volume |
+| 2 | GTVn, nodal gross tumor volume |
 
-For binary nnU-Net training, labels 1 and 2 are combined into one tumor foreground label.
+For binary nnU-Net tumor segmentation, labels 1 and 2 are combined into one foreground tumor label.
 
 ---
 
-## 3. Trained LOCO Model Weights
+## 6. Center-Wise Dataset Summary
+
+Example center-wise counts from the local HECKTOR folder:
+
+| Center | Cases |
+|---|---:|
+| CHUM | 56 |
+| CHUP | 72 |
+| CHUS | 72 |
+| HGJ | 55 |
+| HMR | 18 |
+| MDA | 442 |
+| USZ | 11 |
+
+Total:
+
+```text
+726 cases
+```
+
+USZ is included in dataset distribution plots. If no trained LOCO model is available for USZ, USZ is excluded from model-performance comparison.
+
+---
+
+## 7. Trained LOCO Model Weights
 
 The trained Leave-One-Center-Out nnU-Net model weights are not stored in this GitHub repository.
 
@@ -118,13 +173,13 @@ Download the trained model archive here:
 
 The SharePoint link may require Indiana University login.
 
-Save the file as:
+Save the archive as:
 
 ```text
 model_zoo/hecktor_loco_models.tar.gz
 ```
 
-Create the model folder:
+Create the model folders:
 
 ```bash
 mkdir -p model_zoo
@@ -143,13 +198,13 @@ If the archive contains dataset folders such as `Dataset001_clean_raw_LOCO_CHUM/
 tar -xzf model_zoo/hecktor_loco_models.tar.gz -C local_nnunet/nnUNet_results
 ```
 
-If the archive already contains a top-level `nnUNet_results/` folder, extract it into `local_nnunet`:
+If the archive contains a top-level `nnUNet_results/` folder, extract it into `local_nnunet`:
 
 ```bash
 tar -xzf model_zoo/hecktor_loco_models.tar.gz -C local_nnunet
 ```
 
-After extraction, the expected model structure should look like this:
+Expected model structure:
 
 ```text
 local_nnunet/nnUNet_results/
@@ -167,7 +222,7 @@ local_nnunet/nnUNet_results/
 
 ---
 
-## 4. Software Setup
+## 8. Software Setup
 
 Recommended Python version:
 
@@ -182,7 +237,7 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-Install packages:
+Install dependencies:
 
 ```bash
 pip install --upgrade pip
@@ -216,7 +271,7 @@ To make the variables permanent, add the same lines to `~/.zshrc` or `~/.bashrc`
 
 ---
 
-## 5. Requirements
+## 9. Requirements
 
 `requirements.txt`
 
@@ -238,14 +293,14 @@ On Quartz, PyTorch may need to be installed with the CUDA version supported by t
 
 ---
 
-## 6. Quick Start: Use the Trained Models for Inference
+## 10. Quick Start: Run Inference Using Trained Models
 
-Use this path if you only want to run prediction and evaluation using the trained LOCO models.
+Use this workflow if you want to reproduce prediction, Dice score evaluation, and residual batch-effect analysis using the trained LOCO model weights.
 
 ### Step 1: Extract the HECKTOR dataset
 
 ```bash
-python scripts/00_extract_hecktor_zip.py \
+python Project/00_extract_hecktor_zip.py \
   --zip data/raw/HECKTOR_2025_Training_Data_Defaced_ALL.zip \
   --out data/extracted
 ```
@@ -254,12 +309,14 @@ Expected output:
 
 ```text
 data/extracted/HECKTOR 2025 Training Data Defaced ALL/
+data/extracted/extraction_patient_inventory.csv
+data/extracted/extraction_summary.json
 ```
 
-### Step 2: Run quality control
+### Step 2: Run CT/PET/mask quality control
 
 ```bash
-python scripts/01_qc_ct_dataset.py \
+python Project/01_qc_ct_dataset.py \
   --root "data/extracted/HECKTOR 2025 Training Data Defaced ALL" \
   --out data/processed/step1_qc
 ```
@@ -267,25 +324,44 @@ python scripts/01_qc_ct_dataset.py \
 Expected outputs:
 
 ```text
+data/processed/step1_qc/patient_inventory.csv
 data/processed/step1_qc/ct_dataset_raw.csv
 data/processed/step1_qc/ct_dataset_normalized.csv
 data/processed/step1_qc/abnormal_cases.csv
 data/processed/step1_qc/abnormal_by_center.csv
 data/processed/step1_qc/center_case_counts.csv
 data/processed/step1_qc/center_wise_ct_case_distribution.png
+data/processed/step1_qc/ct_mean_intensity_by_center.png
+data/processed/step1_qc/abnormal_case_count_by_center.png
 ```
+
+This step checks:
+
+- CT file availability
+- PET file availability
+- Mask file availability
+- CT intensity statistics
+- CT slice thickness
+- CT-mask geometry consistency
+- Mask labels
+- Abnormal intensity values
+- Empty masks
+- Center-wise case counts
 
 ### Step 3: Build nnU-Net LOCO datasets
 
+To reproduce the trained cropped LOCO workflow:
+
 ```bash
-python scripts/02_build_nnunet_loco_datasets.py \
+python Project/02_build_nnunet_loco_datasets.py \
   --qc_csv data/processed/step1_qc/ct_dataset_raw.csv \
   --out local_nnunet/nnUNet_raw \
   --label_mode binary \
-  --crop_mode mask
+  --crop_mode mask \
+  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA
 ```
 
-Use `--crop_mode mask` only when reproducing the cropped workflow used for the trained LOCO models.
+Use `--crop_mode mask` only when reproducing the cropped workflow used for the trained model weights.
 
 For strict future test-set inference, use:
 
@@ -314,28 +390,28 @@ imagesTs/
 labelsTs/
 dataset.json
 splits_final.json
+case_mapping.csv
+build_summary.json
 ```
 
 ### Step 4: Download and extract trained weights
 
-Download:
+Download the trained model archive from the SharePoint link in Section 7.
 
-[Download trained HECKTOR LOCO models](https://indiana-my.sharepoint.com/my?id=%2Fpersonal%2Fsrtiwari%5Fiu%5Fedu%2FDocuments%2FMicrosoft%20Teams%20Chat%20Files%2Fhecktor%5Floco%5Fmodels%2Etar%2Egz&parent=%2Fpersonal%2Fsrtiwari%5Fiu%5Fedu%2FDocuments%2FMicrosoft%20Teams%20Chat%20Files&ct=1778459525253&or=Teams%2DHL&ga=1&LOF=1)
-
-Save as:
+Save it as:
 
 ```text
 model_zoo/hecktor_loco_models.tar.gz
 ```
 
-Extract:
+Extract it:
 
 ```bash
 tar -tzf model_zoo/hecktor_loco_models.tar.gz | head
 tar -xzf model_zoo/hecktor_loco_models.tar.gz -C local_nnunet/nnUNet_results
 ```
 
-If the extracted folder is nested incorrectly, move the `DatasetXXX...` folders so they sit directly inside:
+The `DatasetXXX_clean_raw_LOCO_CENTER` folders should sit directly inside:
 
 ```text
 local_nnunet/nnUNet_results/
@@ -344,7 +420,7 @@ local_nnunet/nnUNet_results/
 ### Step 5: Run local inference
 
 ```bash
-python scripts/04_run_local_inference.py \
+python Project/04_run_local_inference.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --nnunet_results local_nnunet/nnUNet_results \
   --out local_nnunet/predictions \
@@ -352,6 +428,8 @@ python scripts/04_run_local_inference.py \
   --fold 0 \
   --checkpoint checkpoint_best.pth
 ```
+
+This step creates nnU-Net predicted tumor masks for each held-out center.
 
 Expected output:
 
@@ -362,17 +440,37 @@ local_nnunet/predictions/
 ├── Dataset003_clean_raw_LOCO_CHUS/
 ├── Dataset004_clean_raw_LOCO_HGJ/
 ├── Dataset005_clean_raw_LOCO_HMR/
-└── Dataset006_clean_raw_LOCO_MDA/
+├── Dataset006_clean_raw_LOCO_MDA/
+├── inference_summary.csv
+├── inference_summary.json
+└── qc_overlays/
 ```
 
-### Step 6: Evaluate Dice and residual batch effects
+### Step 6: Evaluate Dice score and residual batch effects
 
 ```bash
-python scripts/05_evaluate_predictions.py \
+python Project/05_evaluate_predictions.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --pred_root local_nnunet/predictions \
   --out local_nnunet/results
 ```
+
+This step compares nnU-Net predictions with ground-truth masks.
+
+The evaluation includes:
+
+- Dice score
+- Intersection over Union
+- Sensitivity
+- Specificity
+- Precision
+- Accuracy
+- Center-wise summary
+- One-way ANOVA
+- Levene’s test
+- Dice boxplots
+- Mean Dice bar plots
+- Qualitative CT overlays
 
 Expected outputs:
 
@@ -380,40 +478,31 @@ Expected outputs:
 local_nnunet/results/per_case_metrics.csv
 local_nnunet/results/final_summary.csv
 local_nnunet/results/statistical_tests.txt
+local_nnunet/results/statistical_tests.json
 local_nnunet/results/dice_by_hospital.png
 local_nnunet/results/mean_dice_by_hospital.png
+local_nnunet/results/individual_dice_by_hospital.png
 local_nnunet/results/overlays/
 ```
 
-The evaluation script computes:
-
-* Dice
-* IoU
-* Sensitivity
-* Specificity
-* Precision
-* Accuracy
-* One-way ANOVA across centers
-* Levene’s test across centers
-
 ---
 
-## 7. Full Workflow: Train Models from Scratch
+## 11. Full Workflow: Train Models from Scratch
 
-Use this path if you want to train the LOCO models again.
+Use this workflow if you want to train the LOCO models again on Quartz.
 
 ### Step 1: Extract dataset
 
 ```bash
-python scripts/00_extract_hecktor_zip.py \
+python Project/00_extract_hecktor_zip.py \
   --zip data/raw/HECKTOR_2025_Training_Data_Defaced_ALL.zip \
   --out data/extracted
 ```
 
-### Step 2: Run QC
+### Step 2: Run quality control
 
 ```bash
-python scripts/01_qc_ct_dataset.py \
+python Project/01_qc_ct_dataset.py \
   --root "data/extracted/HECKTOR 2025 Training Data Defaced ALL" \
   --out data/processed/step1_qc
 ```
@@ -421,19 +510,25 @@ python scripts/01_qc_ct_dataset.py \
 ### Step 3: Build LOCO nnU-Net datasets
 
 ```bash
-python scripts/02_build_nnunet_loco_datasets.py \
+python Project/02_build_nnunet_loco_datasets.py \
   --qc_csv data/processed/step1_qc/ct_dataset_raw.csv \
   --out local_nnunet/nnUNet_raw \
   --label_mode binary \
-  --crop_mode mask
+  --crop_mode mask \
+  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA
 ```
 
 ### Step 4: Generate Quartz Slurm scripts
 
+Replace `/N/project/YOUR_PROJECT` with your Quartz project path.
+
 ```bash
-python scripts/03_make_quartz_slurm.py \
+python Project/03_make_quartz_slurm.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --out quartz/slurm_jobs \
+  --quartz_nnunet_raw /N/project/YOUR_PROJECT/local_nnunet/nnUNet_raw \
+  --quartz_nnunet_preprocessed /N/project/YOUR_PROJECT/local_nnunet/nnUNet_preprocessed \
+  --quartz_nnunet_results /N/project/YOUR_PROJECT/local_nnunet/nnUNet_results \
   --configuration 3d_fullres \
   --fold 0
 ```
@@ -441,16 +536,22 @@ python scripts/03_make_quartz_slurm.py \
 Expected output:
 
 ```text
-quartz/slurm_jobs/train_Dataset001_clean_raw_LOCO_CHUM.sh
-quartz/slurm_jobs/train_Dataset002_clean_raw_LOCO_CHUP.sh
-...
+quartz/slurm_jobs/
+├── submit_all.sh
+├── train_Dataset001_clean_raw_LOCO_CHUM.sh
+├── train_Dataset002_clean_raw_LOCO_CHUP.sh
+├── train_Dataset003_clean_raw_LOCO_CHUS.sh
+├── train_Dataset004_clean_raw_LOCO_HGJ.sh
+├── train_Dataset005_clean_raw_LOCO_HMR.sh
+└── train_Dataset006_clean_raw_LOCO_MDA.sh
 ```
 
 ### Step 5: Sync data to Quartz
 
 ```bash
-rsync -avz local_nnunet/ username@quartz.uits.iu.edu:/N/project/your_project/local_nnunet/
-rsync -avz quartz/slurm_jobs/ username@quartz.uits.iu.edu:/N/project/your_project/slurm_jobs/
+rsync -avz local_nnunet/ username@quartz.uits.iu.edu:/N/project/YOUR_PROJECT/local_nnunet/
+
+rsync -avz quartz/slurm_jobs/ username@quartz.uits.iu.edu:/N/project/YOUR_PROJECT/slurm_jobs/
 ```
 
 ### Step 6: Train on Quartz
@@ -458,29 +559,22 @@ rsync -avz quartz/slurm_jobs/ username@quartz.uits.iu.edu:/N/project/your_projec
 On Quartz:
 
 ```bash
-cd /N/project/your_project
+cd /N/project/YOUR_PROJECT/slurm_jobs
 ```
 
-Set paths:
+Submit one training job:
 
 ```bash
-export nnUNet_raw="/N/project/your_project/local_nnunet/nnUNet_raw"
-export nnUNet_preprocessed="/N/project/your_project/local_nnunet/nnUNet_preprocessed"
-export nnUNet_results="/N/project/your_project/local_nnunet/nnUNet_results"
+sbatch train_Dataset001_clean_raw_LOCO_CHUM.sh
 ```
 
-Submit jobs:
+Or submit all jobs:
 
 ```bash
-sbatch slurm_jobs/train_Dataset001_clean_raw_LOCO_CHUM.sh
-sbatch slurm_jobs/train_Dataset002_clean_raw_LOCO_CHUP.sh
-sbatch slurm_jobs/train_Dataset003_clean_raw_LOCO_CHUS.sh
-sbatch slurm_jobs/train_Dataset004_clean_raw_LOCO_HGJ.sh
-sbatch slurm_jobs/train_Dataset005_clean_raw_LOCO_HMR.sh
-sbatch slurm_jobs/train_Dataset006_clean_raw_LOCO_MDA.sh
+./submit_all.sh
 ```
 
-Check jobs:
+Check job status:
 
 ```bash
 squeue -u username
@@ -489,7 +583,7 @@ squeue -u username
 Expected model output:
 
 ```text
-local_nnunet/nnUNet_results/
+/N/project/YOUR_PROJECT/local_nnunet/nnUNet_results/
 └── DatasetXXX_clean_raw_LOCO_CENTER/
     └── nnUNetTrainer__nnUNetPlans__3d_fullres/
         └── fold_0/
@@ -501,14 +595,14 @@ local_nnunet/nnUNet_results/
 ### Step 7: Download trained models
 
 ```bash
-rsync -avz username@quartz.uits.iu.edu:/N/project/your_project/local_nnunet/nnUNet_results/ \
+rsync -avz username@quartz.uits.iu.edu:/N/project/YOUR_PROJECT/local_nnunet/nnUNet_results/ \
   local_nnunet/nnUNet_results/
 ```
 
-### Step 8: Run inference and evaluation
+### Step 8: Run inference and evaluation locally
 
 ```bash
-python scripts/04_run_local_inference.py \
+python Project/04_run_local_inference.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --nnunet_results local_nnunet/nnUNet_results \
   --out local_nnunet/predictions \
@@ -518,7 +612,7 @@ python scripts/04_run_local_inference.py \
 ```
 
 ```bash
-python scripts/05_evaluate_predictions.py \
+python Project/05_evaluate_predictions.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --pred_root local_nnunet/predictions \
   --out local_nnunet/results
@@ -526,9 +620,9 @@ python scripts/05_evaluate_predictions.py \
 
 ---
 
-## 8. Leave-One-Center-Out Design
+## 12. Leave-One-Center-Out Design
 
-This project uses Leave-One-Center-Out evaluation.
+This project uses Leave-One-Center-Out evaluation to test cross-center generalization.
 
 For each experiment:
 
@@ -547,43 +641,35 @@ Test center = CHUM
 Training centers = CHUP, CHUS, HGJ, HMR, MDA
 ```
 
+Example:
+
 ```text
 LOCO-MDA:
 Test center = MDA
 Training centers = CHUM, CHUP, CHUS, HGJ, HMR
 ```
 
-This design tests whether the model generalizes to unseen centers.
+This design prevents center overlap between training and testing and evaluates whether the model generalizes to unseen hospitals.
 
 ---
 
-## 9. Center-Wise Dataset Summary
+## 13. Inference and Dice Score Evaluation
 
-Example counts from the local dataset:
+Inference is performed after nnU-Net training or after downloading trained model weights.
 
-| Center | Cases |
-| ------ | ----: |
-| CHUM   |    56 |
-| CHUP   |    72 |
-| CHUS   |    72 |
-| HGJ    |    55 |
-| HMR    |    18 |
-| MDA    |   442 |
-| USZ    |    11 |
-
-Total:
+The inference script generates predicted tumor masks:
 
 ```text
-726 cases
+Project/04_run_local_inference.py
 ```
 
-USZ is included in dataset distribution plots. If no trained LOCO model is available for USZ, USZ is excluded from model-performance comparisons.
+The evaluation script compares predicted masks with ground-truth masks:
 
----
+```text
+Project/05_evaluate_predictions.py
+```
 
-## 10. Evaluation Metrics
-
-The main metric is Dice:
+Dice score is the main segmentation metric:
 
 ```text
 Dice = 2|A ∩ B| / (|A| + |B|)
@@ -598,75 +684,100 @@ B = ground-truth tumor mask
 
 Other metrics:
 
-| Metric      | Meaning                                     |
-| ----------- | ------------------------------------------- |
-| IoU         | Intersection over union                     |
-| Sensitivity | Fraction of ground-truth tumor detected     |
+| Metric | Meaning |
+|---|---|
+| IoU | Intersection over union |
+| Sensitivity | Fraction of ground-truth tumor detected |
 | Specificity | Fraction of background correctly classified |
-| Precision   | Fraction of predicted tumor that is correct |
-| Accuracy    | Overall voxel-wise correctness              |
+| Precision | Fraction of predicted tumor that is correct |
+| Accuracy | Overall voxel-wise correctness |
 
 Statistical tests:
 
-| Test          | Purpose                                            |
-| ------------- | -------------------------------------------------- |
-| One-way ANOVA | Tests whether mean Dice differs across centers     |
+| Test | Purpose |
+|---|---|
+| One-way ANOVA | Tests whether mean Dice differs across centers |
 | Levene’s test | Tests whether Dice variance differs across centers |
+| Kruskal-Wallis | Non-parametric comparison of Dice distributions |
 
 ---
 
-## 11. Visualization
+## 14. Residual Batch-Effect Analysis
 
-Generate a PET/CT ground-truth and prediction overlay:
+Residual batch effects are evaluated using center-wise segmentation performance.
+
+The analysis includes:
+
+- Mean Dice by hospital
+- Dice standard deviation by hospital
+- Dice boxplot by hospital
+- Individual Dice scatter plot
+- One-way ANOVA across hospitals
+- Levene’s test across hospitals
+
+Significant differences in Dice score or Dice variance across hospitals suggest that residual center-specific variability remains after preprocessing.
+
+---
+
+## 15. Visualization
+
+Generate a PET/CT overlay with ground truth and nnU-Net prediction:
 
 ```bash
-python scripts/06_visualize_pet_ct_gt_pred.py \
+python Project/06_visualize_pet_ct_gt_pred.py \
   --ct "data/extracted/HECKTOR 2025 Training Data Defaced ALL/MDA-258/MDA-258__CT.nii.gz" \
   --pet "data/extracted/HECKTOR 2025 Training Data Defaced ALL/MDA-258/MDA-258__PT.nii.gz" \
   --gt "data/extracted/HECKTOR 2025 Training Data Defaced ALL/MDA-258/MDA-258.nii.gz" \
   --pred "local_nnunet/predictions/Dataset006_clean_raw_LOCO_MDA/case_XXXX.nii.gz" \
-  --out figures/MDA-258_pet_ct_gt_prediction_overlay.png
+  --out figures/MDA-258_pet_ct_gt_prediction_overlay.png \
+  --patient_id MDA-258
 ```
 
 The visualization shows:
 
 1. CT only
 2. PET/CT fusion
-3. PET/CT with ground truth and prediction contours
+3. PET/CT with ground-truth and prediction contours
 4. Zoomed error map
 
 Color convention:
 
-| Region                | Color          |
-| --------------------- | -------------- |
-| Ground truth          | Cyan or green  |
-| nnU-Net prediction    | Magenta or red |
-| True positive overlap | Green          |
-| False positive        | Yellow         |
-| False negative        | Blue           |
+| Region | Color |
+|---|---|
+| Ground truth | Cyan or green |
+| nnU-Net prediction | Magenta or red |
+| True positive overlap | Green |
+| False positive | Yellow |
+| False negative | Blue |
+
+This visualization is important because head-and-neck tumors are not always clearly distinguishable on CT alone. The mask-defined region is used for training and evaluation.
 
 ---
 
-## 12. Outputs
-
-Main outputs:
+## 16. Main Outputs
 
 ```text
 data/processed/step1_qc/center_case_counts.csv
 data/processed/step1_qc/center_wise_ct_case_distribution.png
+data/processed/step1_qc/ct_mean_intensity_by_center.png
+data/processed/step1_qc/abnormal_case_count_by_center.png
+
 local_nnunet/predictions/
 local_nnunet/results/per_case_metrics.csv
 local_nnunet/results/final_summary.csv
 local_nnunet/results/statistical_tests.txt
+local_nnunet/results/statistical_tests.json
 local_nnunet/results/dice_by_hospital.png
 local_nnunet/results/mean_dice_by_hospital.png
+local_nnunet/results/individual_dice_by_hospital.png
 local_nnunet/results/overlays/
+
 figures/
 ```
 
 ---
 
-## 13. Files Not Tracked by Git
+## 17. Files Not Tracked by Git
 
 Do not commit:
 
@@ -693,7 +804,7 @@ figures/*.pdf
 
 ---
 
-## 14. Reproducibility Checklist
+## 18. Reproducibility Checklist
 
 ```text
 [ ] HECKTOR zip file placed in data/raw/
@@ -704,6 +815,7 @@ figures/*.pdf
 [ ] nnUNet_results set
 [ ] Dataset extracted
 [ ] QC completed
+[ ] Center-wise counts generated
 [ ] LOCO datasets created
 [ ] Trained model weights downloaded or models trained on Quartz
 [ ] Inference completed
@@ -714,7 +826,19 @@ figures/*.pdf
 
 ---
 
-## 15. References
+## 19. Notes
+
+The trained model archive reproduces the cropped LOCO workflow used in this project. The cropped workflow uses the ground-truth mask to crop the tumor region before training and testing. This is useful for controlled analysis but should not be treated as strict deployment inference.
+
+For future strict external testing, use full-image inference with:
+
+```bash
+--crop_mode none
+```
+
+---
+
+## 20. References
 
 1. Oreiller V, Andrearczyk V, Jreige M, et al. Head and neck tumor segmentation in PET/CT: The HECKTOR challenge. Medical Image Analysis. 2022;77:102336.
 
