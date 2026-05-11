@@ -1,0 +1,137 @@
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+site/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ============================================================
+# Virtual environments
+# ============================================================
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ============================================================
+# IDE / editor files
+# ============================================================
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# ============================================================
+# Jupyter
+# ============================================================
+.ipynb_checkpoints/
+
+# ============================================================
+# Local configuration
+# Keep example_config.json tracked, but ignore local configs
+# ============================================================
+configs/local_config.json
+configs/*_local.json
+.env
+
+# ============================================================
+# HECKTOR data and medical image files
+# Do not commit patient imaging data
+# ============================================================
+data/
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.nrrd
+*.dcm
+*.dicom
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# ============================================================
+# nnU-Net folders
+# ============================================================
+local_nnunet/
+nnUNet_raw/
+nnUNet_preprocessed/
+nnUNet_results/
+nnunet_raw/
+nnunet_preprocessed/
+nnunet_results/
+
+# ============================================================
+# Model checkpoints and training outputs
+# ============================================================
+*.pth
+*.pt
+*.ckpt
+*.model
+checkpoint_*.pth
+checkpoint_*.pt
+progress.png
+training_log*.txt
+plans.json
+dataset_fingerprint.json
+
+# ============================================================
+# Predictions and evaluation outputs
+# ============================================================
+predictions/
+predictions_latest/
+results/
+qc_latest/
+overlays/
+outputs/
+step1_3_flagged/
+nnunet_datasets_final/
+
+# ============================================================
+# Figures generated locally
+# Keep final report figures manually if needed
+# ============================================================
+figures/*.png
+figures/*.jpg
+figures/*.jpeg
+figures/*.pdf
+figures/*.svg
+
+# Optional: allow tracked placeholder file in figures folder
+!figures/.gitkeep
+
+# ============================================================
+# Reports / drafts generated locally
+# ============================================================
+*.docx
+*.docm
+*.pdf
+~$*.docx
+~$*.docm
+
+# Optional: uncomment if you want final submitted report tracked
+# !reports/final_report.pdf
+# !reports/final_report.docx
+
+# ============================================================
+# macOS / Windows
+# ============================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
