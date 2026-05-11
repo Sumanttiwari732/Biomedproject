@@ -781,5 +781,3 @@ Recommended references for the project report:
 6. Wu H, Liu X, Peng L, et al. Optimal batch determination for improved harmonization and prognostication of multi-center PET/CT radiomics feature in head and neck cancer. Physics in Medicine & Biology. 2023;68(22):225014.
 
 ```
-
-
