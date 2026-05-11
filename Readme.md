@@ -55,12 +55,13 @@ The project objectives are:
 ## 4. Repository Structure
 
 ```text
+## Repository Structure
+
+```text
 Biomedproject/
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
-├── configs/
-│   └── example_config.json
 ├── Project/
 │   ├── 00_extract_hecktor_zip.py
 │   ├── 01_qc_ct_dataset.py
@@ -68,7 +69,13 @@ Biomedproject/
 │   ├── 03_make_quartz_slurm.py
 │   ├── 04_run_local_inference.py
 │   ├── 05_evaluate_predictions.py
-│   └── 06_visualize_pet_ct_gt_pred.py
+│   ├── 06_visualize_pet_ct_gt_pred.py
+│   ├── 07_extract_radiomics_features.py
+│   ├── 08_combat_center_leakage.py
+│   ├── 09_preprocessing_normalization_augmentation_visuals.py
+│   └── 10_make_final_batch_effect_summary.py
+├── configs/
+│   └── example_config.json
 ├── quartz/
 │   └── README_QUARTZ.md
 ├── docs/
@@ -77,17 +84,16 @@ Biomedproject/
 │   ├── raw/
 │   ├── extracted/
 │   └── processed/
-├── model_zoo/
 ├── local_nnunet/
-│   ├── nnUNet_raw/
-│   ├── nnUNet_preprocessed/
-│   ├── nnUNet_results/
-│   ├── predictions/
+│   ├── nnunet_datasets_final/
+│   ├── nnunet_results/
+│   ├── predictions_latest/
 │   └── results/
+├── radiomics_outputs_nnunet/
+├── preprocessing_visuals/
+├── final_project_outputs/
 └── figures/
 ```
-
-The folders `data/`, `model_zoo/`, `local_nnunet/`, `figures/`, model checkpoints, predictions, and NIfTI files are not tracked by Git.
 
 ---
 
@@ -96,8 +102,6 @@ The folders `data/`, `model_zoo/`, `local_nnunet/`, `figures/`, model checkpoint
 This project uses the **HECKTOR 2025 Training Data Defaced ALL** dataset.
 
 The dataset is not included in this repository because it contains large medical imaging files.
-
-Place the downloaded dataset zip file here:
 
 ```text
 data/raw/HECKTOR_2025_Training_Data_Defaced_ALL.zip
