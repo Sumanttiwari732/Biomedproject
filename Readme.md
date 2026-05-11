@@ -159,7 +159,7 @@ Total:
 726 cases
 ```
 
-USZ is included in dataset distribution plots. If no trained LOCO model is available for USZ, USZ is excluded from model-performance comparison.
+USZ is included in the full dataset summary, center-wise exploratory analysis, and the full seven-center LOCO workflow.
 
 ---
 
@@ -204,20 +204,35 @@ If the archive contains a top-level `nnUNet_results/` folder, extract it into `l
 tar -xzf model_zoo/hecktor_loco_models.tar.gz -C local_nnunet
 ```
 
-Expected model structure:
+Expected full seven-center model structure:
 
 ```text
 local_nnunet/nnUNet_results/
 ├── Dataset001_clean_raw_LOCO_CHUM/
-│   └── nnUNetTrainer__nnUNetPlans__3d_fullres/
-│       └── fold_0/
-│           ├── checkpoint_best.pth
-│           └── checkpoint_final.pth
 ├── Dataset002_clean_raw_LOCO_CHUP/
 ├── Dataset003_clean_raw_LOCO_CHUS/
 ├── Dataset004_clean_raw_LOCO_HGJ/
 ├── Dataset005_clean_raw_LOCO_HMR/
-└── Dataset006_clean_raw_LOCO_MDA/
+├── Dataset006_clean_raw_LOCO_MDA/
+└── Dataset007_clean_raw_LOCO_USZ/
+```
+
+Each dataset should contain a trained nnU-Net model folder:
+
+```text
+DatasetXXX_clean_raw_LOCO_CENTER/
+└── nnUNetTrainer__nnUNetPlans__3d_fullres/
+    └── fold_0/
+        ├── checkpoint_best.pth
+        └── checkpoint_final.pth
+```
+
+If `Dataset007_clean_raw_LOCO_USZ` is not present in the downloaded model archive, the USZ LOCO model must be trained on Quartz before running USZ inference.
+
+Check available models with:
+
+```bash
+find local_nnunet/nnUNet_results -maxdepth 1 -type d -name "Dataset*LOCO*"
 ```
 
 ---
@@ -295,7 +310,7 @@ On Quartz, PyTorch may need to be installed with the CUDA version supported by t
 
 ## 10. Quick Start: Run Inference Using Trained Models
 
-Use this workflow if you want to reproduce prediction, Dice score evaluation, and residual batch-effect analysis using the trained LOCO model weights.
+Use this workflow if trained LOCO model weights are already available.
 
 ### Step 1: Extract the HECKTOR dataset
 
@@ -348,9 +363,9 @@ This step checks:
 - Empty masks
 - Center-wise case counts
 
-### Step 3: Build nnU-Net LOCO datasets
+### Step 3: Build seven-center nnU-Net LOCO datasets
 
-To reproduce the trained cropped LOCO workflow:
+To include USZ in the LOCO process:
 
 ```bash
 python Project/02_build_nnunet_loco_datasets.py \
@@ -358,7 +373,7 @@ python Project/02_build_nnunet_loco_datasets.py \
   --out local_nnunet/nnUNet_raw \
   --label_mode binary \
   --crop_mode mask \
-  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA
+  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA,USZ
 ```
 
 Use `--crop_mode mask` only when reproducing the cropped workflow used for the trained model weights.
@@ -369,7 +384,7 @@ For strict future test-set inference, use:
 --crop_mode none
 ```
 
-Expected output:
+Expected seven-center output:
 
 ```text
 local_nnunet/nnUNet_raw/
@@ -378,7 +393,8 @@ local_nnunet/nnUNet_raw/
 ├── Dataset003_clean_raw_LOCO_CHUS/
 ├── Dataset004_clean_raw_LOCO_HGJ/
 ├── Dataset005_clean_raw_LOCO_HMR/
-└── Dataset006_clean_raw_LOCO_MDA/
+├── Dataset006_clean_raw_LOCO_MDA/
+└── Dataset007_clean_raw_LOCO_USZ/
 ```
 
 Each dataset contains:
@@ -417,7 +433,17 @@ The `DatasetXXX_clean_raw_LOCO_CENTER` folders should sit directly inside:
 local_nnunet/nnUNet_results/
 ```
 
+Check which LOCO models are available:
+
+```bash
+find local_nnunet/nnUNet_results -maxdepth 1 -type d -name "Dataset*LOCO*"
+```
+
+If the archive does not include `Dataset007_clean_raw_LOCO_USZ`, train the USZ LOCO model using the full workflow in Section 11 before running seven-center inference.
+
 ### Step 5: Run local inference
+
+Run inference for all available LOCO models:
 
 ```bash
 python Project/04_run_local_inference.py \
@@ -426,12 +452,24 @@ python Project/04_run_local_inference.py \
   --out local_nnunet/predictions \
   --configuration 3d_fullres \
   --fold 0 \
+  --checkpoint checkpoint_best.pth \
+  --continue_on_error
+```
+
+If the trained archive only contains six models and does not include USZ, run inference only on the available six centers:
+
+```bash
+python Project/04_run_local_inference.py \
+  --nnunet_raw local_nnunet/nnUNet_raw \
+  --nnunet_results local_nnunet/nnUNet_results \
+  --out local_nnunet/predictions \
+  --datasets CHUM,CHUP,CHUS,HGJ,HMR,MDA \
+  --configuration 3d_fullres \
+  --fold 0 \
   --checkpoint checkpoint_best.pth
 ```
 
-This step creates nnU-Net predicted tumor masks for each held-out center.
-
-Expected output:
+Expected seven-center output after all models are available:
 
 ```text
 local_nnunet/predictions/
@@ -441,6 +479,7 @@ local_nnunet/predictions/
 ├── Dataset004_clean_raw_LOCO_HGJ/
 ├── Dataset005_clean_raw_LOCO_HMR/
 ├── Dataset006_clean_raw_LOCO_MDA/
+├── Dataset007_clean_raw_LOCO_USZ/
 ├── inference_summary.csv
 ├── inference_summary.json
 └── qc_overlays/
@@ -448,11 +487,24 @@ local_nnunet/predictions/
 
 ### Step 6: Evaluate Dice score and residual batch effects
 
+Run evaluation for all available predictions:
+
 ```bash
 python Project/05_evaluate_predictions.py \
   --nnunet_raw local_nnunet/nnUNet_raw \
   --pred_root local_nnunet/predictions \
-  --out local_nnunet/results
+  --out local_nnunet/results \
+  --continue_on_error
+```
+
+If only six-center predictions are available:
+
+```bash
+python Project/05_evaluate_predictions.py \
+  --nnunet_raw local_nnunet/nnUNet_raw \
+  --pred_root local_nnunet/predictions \
+  --out local_nnunet/results \
+  --datasets CHUM,CHUP,CHUS,HGJ,HMR,MDA
 ```
 
 This step compares nnU-Net predictions with ground-truth masks.
@@ -487,9 +539,9 @@ local_nnunet/results/overlays/
 
 ---
 
-## 11. Full Workflow: Train Models from Scratch
+## 11. Full Workflow: Train Seven LOCO Models from Scratch
 
-Use this workflow if you want to train the LOCO models again on Quartz.
+Use this workflow to train all seven LOCO models, including USZ.
 
 ### Step 1: Extract dataset
 
@@ -507,7 +559,7 @@ python Project/01_qc_ct_dataset.py \
   --out data/processed/step1_qc
 ```
 
-### Step 3: Build LOCO nnU-Net datasets
+### Step 3: Build seven LOCO nnU-Net datasets
 
 ```bash
 python Project/02_build_nnunet_loco_datasets.py \
@@ -515,7 +567,20 @@ python Project/02_build_nnunet_loco_datasets.py \
   --out local_nnunet/nnUNet_raw \
   --label_mode binary \
   --crop_mode mask \
-  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA
+  --centers CHUM,CHUP,CHUS,HGJ,HMR,MDA,USZ \
+  --overwrite
+```
+
+This creates:
+
+```text
+Dataset001_clean_raw_LOCO_CHUM
+Dataset002_clean_raw_LOCO_CHUP
+Dataset003_clean_raw_LOCO_CHUS
+Dataset004_clean_raw_LOCO_HGJ
+Dataset005_clean_raw_LOCO_HMR
+Dataset006_clean_raw_LOCO_MDA
+Dataset007_clean_raw_LOCO_USZ
 ```
 
 ### Step 4: Generate Quartz Slurm scripts
@@ -543,7 +608,8 @@ quartz/slurm_jobs/
 ├── train_Dataset003_clean_raw_LOCO_CHUS.sh
 ├── train_Dataset004_clean_raw_LOCO_HGJ.sh
 ├── train_Dataset005_clean_raw_LOCO_HMR.sh
-└── train_Dataset006_clean_raw_LOCO_MDA.sh
+├── train_Dataset006_clean_raw_LOCO_MDA.sh
+└── train_Dataset007_clean_raw_LOCO_USZ.sh
 ```
 
 ### Step 5: Sync data to Quartz
@@ -565,7 +631,7 @@ cd /N/project/YOUR_PROJECT/slurm_jobs
 Submit one training job:
 
 ```bash
-sbatch train_Dataset001_clean_raw_LOCO_CHUM.sh
+sbatch train_Dataset007_clean_raw_LOCO_USZ.sh
 ```
 
 Or submit all jobs:
@@ -633,20 +699,24 @@ Validation data = internal split from training centers
 Test data = held-out center only
 ```
 
-Example:
+Examples:
 
 ```text
 LOCO-CHUM:
 Test center = CHUM
-Training centers = CHUP, CHUS, HGJ, HMR, MDA
+Training centers = CHUP, CHUS, HGJ, HMR, MDA, USZ
 ```
-
-Example:
 
 ```text
 LOCO-MDA:
 Test center = MDA
-Training centers = CHUM, CHUP, CHUS, HGJ, HMR
+Training centers = CHUM, CHUP, CHUS, HGJ, HMR, USZ
+```
+
+```text
+LOCO-USZ:
+Test center = USZ
+Training centers = CHUM, CHUP, CHUS, HGJ, HMR, MDA
 ```
 
 This design prevents center overlap between training and testing and evaluates whether the model generalizes to unseen hospitals.
@@ -724,6 +794,12 @@ Significant differences in Dice score or Dice variance across hospitals suggest 
 Generate a PET/CT overlay with ground truth and nnU-Net prediction:
 
 ```bash
+grep "MDA-258" local_nnunet/nnUNet_raw/Dataset006_clean_raw_LOCO_MDA/case_mapping.csv
+```
+
+Use the `case_XXXX` value from `case_mapping.csv` in the prediction path:
+
+```bash
 python Project/06_visualize_pet_ct_gt_pred.py \
   --ct "data/extracted/HECKTOR 2025 Training Data Defaced ALL/MDA-258/MDA-258__CT.nii.gz" \
   --pet "data/extracted/HECKTOR 2025 Training Data Defaced ALL/MDA-258/MDA-258__PT.nii.gz" \
@@ -762,6 +838,8 @@ data/processed/step1_qc/center_wise_ct_case_distribution.png
 data/processed/step1_qc/ct_mean_intensity_by_center.png
 data/processed/step1_qc/abnormal_case_count_by_center.png
 
+local_nnunet/nnUNet_raw/
+local_nnunet/nnUNet_results/
 local_nnunet/predictions/
 local_nnunet/results/per_case_metrics.csv
 local_nnunet/results/final_summary.csv
@@ -816,8 +894,9 @@ figures/*.pdf
 [ ] Dataset extracted
 [ ] QC completed
 [ ] Center-wise counts generated
-[ ] LOCO datasets created
+[ ] Seven-center LOCO datasets created
 [ ] Trained model weights downloaded or models trained on Quartz
+[ ] USZ model available or trained if reporting USZ performance
 [ ] Inference completed
 [ ] Dice evaluation completed
 [ ] Statistical tests completed
@@ -828,13 +907,15 @@ figures/*.pdf
 
 ## 19. Notes
 
-The trained model archive reproduces the cropped LOCO workflow used in this project. The cropped workflow uses the ground-truth mask to crop the tumor region before training and testing. This is useful for controlled analysis but should not be treated as strict deployment inference.
+The trained model archive may reproduce the cropped LOCO workflow used in this project. The cropped workflow uses the ground-truth mask to crop the tumor region before training and testing. This is useful for controlled analysis but should not be treated as strict deployment inference.
 
 For future strict external testing, use full-image inference with:
 
 ```bash
 --crop_mode none
 ```
+
+The full seven-center pipeline includes USZ. If the existing trained model archive does not contain a USZ LOCO model, train `Dataset007_clean_raw_LOCO_USZ` before including USZ in model-performance statistics.
 
 ---
 
