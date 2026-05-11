@@ -20,3 +20,6 @@ tqdm>=4.66
 
 # Excel / metadata support
 openpyxl>=3.1
+
+pyradiomics>=3.0.1
+neuroCombat>=0.2.12
