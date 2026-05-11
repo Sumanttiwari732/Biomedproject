@@ -1,5 +1,3 @@
-Below is a clean **README.md** text you can copy directly into your GitHub repository.
-
 The nnU-Net workflow below follows the standard nnU-Net v2 logic: datasets are placed under `nnUNet_raw`, each dataset uses a `DatasetXXX_Name` folder format, and nnU-Net performs planning, preprocessing, training, and inference through its command-line workflow. nnU-Net is a self-configuring biomedical segmentation framework that adapts preprocessing, architecture, and training settings to the dataset. ([GitHub][1])
 
 ````markdown
