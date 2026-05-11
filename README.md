@@ -782,8 +782,4 @@ Recommended references for the project report:
 
 ```
 
-Use this as the first commit-ready README. The next file to build should be `requirements.txt`, followed by `.gitignore`, then `scripts/00_extract_hecktor_zip.py`.
-::contentReference[oaicite:1]{index=1}
-```
 
-[1]: https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format.md?utm_source=chatgpt.com "nnUNet/documentation/dataset_format.md at master - GitHub"
